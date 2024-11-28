@@ -33,6 +33,21 @@ impl ZipFile {
             .map(|file| file.split('/').last().unwrap().to_string())
             .collect()
     }
+
+    pub fn get_relative_path(&self, file: &str) -> Option<String> {
+        compress_tools::list_archive_files(&self.0)
+            .unwrap()
+            .into_iter()
+            .find(|f| f.ends_with(file))
+    }
+
+    pub fn extract(&self, file: &str, output_dir: &Path) -> std::io::Result<()> {
+        let relative_path = self.get_relative_path(file).unwrap();
+        let output_file = File::create(output_dir.join(&relative_path))?;
+        compress_tools::uncompress_archive_file(&self.0, output_file, &relative_path)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+            .map(|_| ())
+    }
 }
 
 pub fn default_output_path(firmware_zip_path: &Path) -> PathBuf {
