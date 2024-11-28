@@ -41,12 +41,16 @@ impl ZipFile {
             .find(|f| f.ends_with(file))
     }
 
-    pub fn extract(&self, file: &str, output_dir: &Path) -> std::io::Result<()> {
+    /// Extracts a file from the archive to the output directory.
+    ///
+    /// Returns the path to the extracted file.
+    pub fn extract(&self, file: &str, output_dir: &Path) -> std::io::Result<PathBuf> {
         let relative_path = self.get_relative_path(file).unwrap();
-        let output_file = File::create(output_dir.join(&relative_path))?;
+        let output_path = output_dir.join(&relative_path);
+        let output_file = File::create(&output_path)?;
         compress_tools::uncompress_archive_file(&self.0, output_file, &relative_path)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-            .map(|_| ())
+            .map(|_| output_path)
     }
 }
 
