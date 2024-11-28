@@ -10,7 +10,7 @@ use {
     sparsechunkextractor::SparseChunkExtractor,
 };
 
-trait Extractable {
+pub trait Extractable {
     fn extract(&self, partition: &str, output: &Path) -> std::io::Result<()> {
         Err(std::io::Error::new(
             std::io::ErrorKind::Other,
