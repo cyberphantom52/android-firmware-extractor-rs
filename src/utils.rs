@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::os::unix::fs::FileExt;
 use std::path::Path;
-struct ZipFile(File);
+pub struct ZipFile(File);
 
 const ZIP_SIGNATURE: [u8; 4] = [0x50, 0x4B, 0x03, 0x04];
 

@@ -1,6 +1,7 @@
 use clap::Parser;
 use std::path::PathBuf;
-mod utils;
+mod extractor;
+pub mod utils;
 
 #[derive(Parser, Debug)]
 #[command(
