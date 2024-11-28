@@ -1,0 +1,15 @@
+[package]
+name = "android-firmware-extractor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+brotli = "7.0.0"
+clap = { version = "4.5.21", features = ["derive"] }
+compress-tools = "0.15.1"
+regex = "1.11.1"
+payload-dumper-rs = { git = "https://github.com/cyberphantom52/payload-dumper-rs/" }
+android-sparse-rs = { package = "android-sparse", git = "https://gitlab.com/teskje/android-sparse-rs/" }
+
+[profile.release]
+lto = true
