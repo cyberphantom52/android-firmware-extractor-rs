@@ -10,10 +10,6 @@ pub struct ABExtractor {
     _tmpdir: TempDir,
 }
 
-impl Drop for ABExtractor {
-    fn drop(&mut self) {}
-}
-
 impl TryFrom<ZipFile> for ABExtractor {
     type Error = std::io::Error;
 
