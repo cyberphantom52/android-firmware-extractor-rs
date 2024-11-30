@@ -23,7 +23,7 @@ impl AOnlyExtractor {
 
     pub fn get_archived_partitions(&self, partition: &str) -> (Vec<PathBuf>, Vec<PathBuf>) {
         let pattern = Regex::new(&format!(
-            r"  (?:.*\/)?{partition}\.(new\.dat.*|transfer\.list|img)$"
+            r"(?:.*\/)?{partition}\.(new\.dat.*|transfer\.list|img)$"
         ))
         .unwrap();
         let numbered_dat = Regex::new(r"\.new\.dat\.\d+$").unwrap();
@@ -104,7 +104,7 @@ impl Extractable for AOnlyExtractor {
             }
         }
 
-        for entry in std::fs::read_dir(output)? {
+        for entry in std::fs::read_dir(self.tmpdir())? {
             let entry = entry?;
             let path = entry.path();
             if !path.is_file() {
