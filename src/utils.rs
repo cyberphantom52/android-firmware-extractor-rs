@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::os::unix::fs::FileExt;
+use std::io::{Read, Seek, Write};
 use std::path::{Path, PathBuf};
 pub struct ZipFile(File);
 
@@ -8,11 +8,11 @@ const ZIP_SIGNATURE: [u8; 4] = [0x50, 0x4B, 0x03, 0x04];
 impl TryFrom<&Path> for ZipFile {
     type Error = std::io::Error;
     fn try_from(value: &Path) -> Result<Self, Self::Error> {
-        let file = File::open(value)?;
+        let mut file = File::open(value)?;
 
         // Verify file signature
         let mut buf = [0; 4];
-        file.read_exact_at(&mut buf, 0)?;
+        file.read_exact(&mut buf)?;
 
         if buf != ZIP_SIGNATURE {
             return Err(std::io::Error::new(
@@ -20,48 +20,55 @@ impl TryFrom<&Path> for ZipFile {
                 "Input is not a valid ZIP file.",
             ));
         }
+        file.rewind()?;
 
         Ok(ZipFile(file))
     }
 }
 
 impl ZipFile {
-    pub fn get_archived_basenames(&self) -> Vec<String> {
+    /// Returns a list of files in the archive.
+    ///
+    /// The files are returned as [PathBuf] objects.
+    pub fn files(&self) -> Vec<PathBuf> {
         compress_tools::list_archive_files(&self.0)
             .unwrap()
             .into_iter()
-            .map(|file| file.split('/').last().unwrap().to_string())
+            .map(PathBuf::from)
             .collect()
     }
 
-    pub fn get_relative_path(&self, file: &str) -> Option<String> {
-        compress_tools::list_archive_files(&self.0)
-            .unwrap()
+    /// Returns a list of file names in the archive without the relative path.
+    pub fn file_names(&self) -> Vec<String> {
+        self.files()
             .into_iter()
-            .find(|f| f.ends_with(file))
+            .map(|file| file.file_name().unwrap().to_str().unwrap().to_string())
+            .collect()
     }
 
-    /// Extracts a file from the archive to the output directory.
+    /// Extracts a file from the archive to the specified destination.
     ///
-    /// Returns the path to the extracted file.
-    pub fn extract(&self, file: &str, output_dir: &Path) -> std::io::Result<PathBuf> {
-        let relative_path = self.get_relative_path(file).unwrap();
-        let output_path = output_dir.join(&relative_path);
-        let output_file = File::create(&output_path)?;
-        compress_tools::uncompress_archive_file(&self.0, output_file, &relative_path)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-            .map(|_| output_path)
-    }
-
-    pub fn extract_to_file<T: std::io::Write>(
+    /// # Arguments
+    ///
+    /// * `archived_file_path` - The path to the file in the archive.
+    ///
+    /// * `destination` - The destination to extract the file to.
+    ///
+    /// # Returns
+    ///
+    /// Returns an error if the file cannot be extracted.
+    pub fn extract<W: Write>(
         &self,
-        archived_filename: &str,
-        destination_file: T,
+        archived_file_path: &Path,
+        destination: W,
     ) -> std::io::Result<()> {
-        let relative_path = self.get_relative_path(archived_filename).unwrap();
-        compress_tools::uncompress_archive_file(&self.0, destination_file, &relative_path)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-            .map(|_| ())
+        compress_tools::uncompress_archive_file(
+            &self.0,
+            destination,
+            archived_file_path.to_str().unwrap(),
+        )
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+        .map(|_| ())
     }
 }
 

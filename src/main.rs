@@ -1,7 +1,6 @@
 use clap::Parser;
 use extractor::Extractable;
 use std::path::PathBuf;
-use temp_dir::TempDir;
 mod extractor;
 pub mod utils;
 
@@ -22,15 +21,15 @@ struct Arguments {
 }
 
 fn main() -> std::io::Result<()> {
-    // let args: Arguments = Arguments::parse();
-    // let output = args
-    //     .output
-    //     .unwrap_or_else(|| utils::default_output_path(&args.firmware_zip_path));
-    // let archive = utils::ZipFile::try_from(args.firmware_zip_path.as_path())?;
-    // let extractor = extractor::Extractor::try_from(archive)?;
+    let args: Arguments = Arguments::parse();
+    let output = args
+        .output
+        .unwrap_or_else(|| utils::default_output_path(&args.firmware_zip_path));
+    let archive = utils::ZipFile::try_from(args.firmware_zip_path.as_path())?;
+    let extractor = extractor::Extractor::try_from(archive)?;
 
-    // for partition in args.partitions.iter() {
-    //     extractor.extract(partition, output.as_path())?;
-    // }
+    for partition in args.partitions.iter() {
+        extractor.extract(partition, output.as_path())?;
+    }
     Ok(())
 }

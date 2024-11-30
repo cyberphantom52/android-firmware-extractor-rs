@@ -11,7 +11,7 @@ use {
 };
 
 pub trait Extractable {
-    fn extract(&self, partition: &str, output: &Path) -> std::io::Result<()> {
+    fn extract(&self, _: &str, _: &Path) -> std::io::Result<()> {
         Err(std::io::Error::new(
             std::io::ErrorKind::Other,
             "Not implemented",
@@ -33,7 +33,7 @@ impl TryFrom<ZipFile> for Extractor {
     type Error = std::io::Error;
 
     fn try_from(archive: ZipFile) -> std::result::Result<Self, Self::Error> {
-        let files = archive.get_archived_basenames();
+        let files = archive.file_names();
 
         if files.iter().any(|file| file == "system.new.dat") {
             println!("A Only Firmware Detected");

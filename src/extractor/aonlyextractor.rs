@@ -1,7 +1,11 @@
 use crate::utils::ZipFile;
 use regex::Regex;
 use sdat2img_rs::{SparseDecoder, TransferList};
-use std::{fs::File, io::Result, path::Path};
+use std::{
+    fs::File,
+    io::Result,
+    path::{Path, PathBuf},
+};
 use temp_dir::TempDir;
 use {brotli::Decompressor, compress_tools::uncompress_data};
 
@@ -16,6 +20,58 @@ impl AOnlyExtractor {
     pub fn tmpdir(&self) -> &Path {
         self.tmpdir.path()
     }
+
+    pub fn get_archived_partitions(&self, partition: &str) -> (Vec<PathBuf>, Vec<PathBuf>) {
+        let pattern = Regex::new(&format!(
+            r"  (?:.*\/)?{partition}\.(new\.dat.*|transfer\.list|img)$"
+        ))
+        .unwrap();
+        let numbered_dat = Regex::new(r"\.new\.dat\.\d+$").unwrap();
+        self.archive
+            .files()
+            .into_iter()
+            .filter(|x| pattern.is_match(x.to_str().unwrap()))
+            .partition(|x| !numbered_dat.is_match(x.to_str().unwrap()))
+    }
+
+    pub fn sdat2img(&self, transfer_list: &Path, sparse_file: &Path, output: &Path) -> Result<()> {
+        let source = File::open(sparse_file)?;
+        let destination = File::create(output)?;
+
+        SparseDecoder::new(TransferList::try_from(transfer_list)?, source, destination).decode()
+    }
+
+    pub fn decompress(&self, compressed_file: &Path) -> Result<()> {
+        let extension = compressed_file.extension().unwrap();
+        let output = compressed_file
+            .with_extension("")
+            .file_name()
+            .unwrap()
+            .to_owned();
+        let mut source = File::open(&compressed_file)?;
+        let mut output_file = File::create(&self.tmpdir().join(output))?;
+
+        if extension == "xz" {
+            uncompress_data(&mut source, &mut output_file)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                .map(|_| ())?;
+        } else {
+            let mut decoder = Decompressor::new(source, 4096);
+            std::io::copy(&mut decoder, &mut output_file)?;
+        }
+
+        std::fs::remove_file(&compressed_file)?;
+
+        Ok(())
+    }
+
+    pub fn unsparse(&self, partition: &str, output: &Path) -> Result<()> {
+        let sparse_file = self.tmpdir().join(format!("{}.new.dat", partition));
+        let transfer_list = self.tmpdir().join(format!("{}.transfer.list", partition));
+        let output_image = output.join(format!("{}.img", partition));
+
+        self.sdat2img(&transfer_list, &sparse_file, &output_image)
+    }
 }
 
 impl From<ZipFile> for AOnlyExtractor {
@@ -29,29 +85,22 @@ impl From<ZipFile> for AOnlyExtractor {
 
 impl Extractable for AOnlyExtractor {
     fn extract(&self, partition: &str, output: &Path) -> Result<()> {
-        let pattern =
-            Regex::new(&format!(r"^{partition}\.(img|transfer\.list|new\.dat.*)$")).unwrap();
-        let numbered_dat = Regex::new(r"\.new\.dat\.\d+$").unwrap();
-        let (parts, mut numbered_dat_parts): (Vec<_>, Vec<_>) = self
-            .archive
-            .get_archived_basenames()
-            .into_iter()
-            .filter(|x| pattern.is_match(x))
-            .partition(|x| !numbered_dat.is_match(x));
+        let (parts, mut numbered_dat_parts) = self.get_archived_partitions(partition);
 
         for part in parts {
-            self.archive.extract(&part, self.tmpdir())?;
+            let destination = File::create(self.tmpdir().join(&part.file_name().unwrap()))?;
+            self.archive.extract(&part, destination)?;
         }
 
         if !numbered_dat_parts.is_empty() {
             numbered_dat_parts.sort();
-            let dat_file = std::fs::OpenOptions::new()
+            let destination = std::fs::OpenOptions::new()
                 .write(true)
                 .create(true)
                 .append(true)
                 .open(self.tmpdir().join(format!("{partition}.new.dat")))?;
             for part in numbered_dat_parts {
-                self.archive.extract_to_file(&part, &dat_file)?;
+                self.archive.extract(&part, &destination)?;
             }
         }
 
@@ -64,43 +113,20 @@ impl Extractable for AOnlyExtractor {
             if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
                 if file_name.ends_with(".img") {
                     // Move the file to the output directory
-                    std::fs::rename(
-                        self.tmpdir().join(&path.file_name().unwrap()),
-                        output.join(&path.file_name().unwrap()),
-                    )?;
+                    std::fs::rename(&path, output.join(file_name))?;
                     return Ok(());
                 }
 
-                if file_name.ends_with(".dat.xz") {
-                    let mut compressed_file = File::open(&path)?;
-                    let mut output_file =
-                        File::create(&self.tmpdir().join(file_name.strip_suffix(".xz").unwrap()))?;
-
-                    uncompress_data(&mut compressed_file, &mut output_file)
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-                        .map(|_| ())?;
-
-                    std::fs::remove_file(&path)?;
-                } else if file_name.ends_with(".dat.br") {
-                    let compressed_file = File::open(&path)?;
-                    let mut output_file =
-                        File::create(&self.tmpdir().join(file_name.strip_suffix(".br").unwrap()))?;
-
-                    let mut decoder = Decompressor::new(compressed_file, 4096);
-                    std::io::copy(&mut decoder, &mut output_file)?;
-
-                    std::fs::remove_file(&path)?;
+                if file_name.ends_with(".xz") || file_name.ends_with(".br") {
+                    self.decompress(&path)?;
                 }
             }
         }
 
         let new_dat_path = self.tmpdir().join(format!("{}.new.dat", partition));
-
         if new_dat_path.exists() {
-            let transfer_list_path = self.tmpdir().join(format!("{}.transfer.list", partition));
-            let image_path = output.join(format!("{}.img", partition));
-
-            if !transfer_list_path.exists() {
+            let transfer_list = self.tmpdir().join(format!("{}.transfer.list", partition));
+            if !transfer_list.exists() {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
                     format!(
@@ -110,14 +136,7 @@ impl Extractable for AOnlyExtractor {
                 ));
             }
 
-            let source = File::open(new_dat_path)?;
-            let dest = File::open(image_path)?;
-            SparseDecoder::new(
-                TransferList::try_from(transfer_list_path.as_path())?,
-                source,
-                dest,
-            )
-            .decode()?;
+            self.unsparse(partition, output)?;
         }
 
         Ok(())

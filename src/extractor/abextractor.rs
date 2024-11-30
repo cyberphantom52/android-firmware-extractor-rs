@@ -19,8 +19,11 @@ impl TryFrom<ZipFile> for ABExtractor {
 
     fn try_from(archive: ZipFile) -> std::result::Result<Self, Self::Error> {
         let _tmpdir = TempDir::new()?;
+        let archive_payload = std::path::PathBuf::from("payload.bin");
+        let payload_path = _tmpdir.path().join("payload.bin");
+        let writer = std::fs::File::create(&payload_path)?;
 
-        let payload_path = archive.extract("payload.bin", &_tmpdir.path())?;
+        archive.extract(&archive_payload, writer)?;
         let payload = Payload::try_from(payload_path.as_path())?;
         Ok(ABExtractor { payload, _tmpdir })
     }
