@@ -52,6 +52,17 @@ impl ZipFile {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
             .map(|_| output_path)
     }
+
+    pub fn extract_to_file<T: std::io::Write>(
+        &self,
+        archived_filename: &str,
+        destination_file: T,
+    ) -> std::io::Result<()> {
+        let relative_path = self.get_relative_path(archived_filename).unwrap();
+        compress_tools::uncompress_archive_file(&self.0, destination_file, &relative_path)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+            .map(|_| ())
+    }
 }
 
 pub fn default_output_path(firmware_zip_path: &Path) -> PathBuf {

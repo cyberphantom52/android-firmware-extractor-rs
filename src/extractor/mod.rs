@@ -7,6 +7,7 @@ mod abextractor;
 mod aonlyextractor;
 mod aptarmd5extractor;
 mod sparsechunkextractor;
+pub const TMPDIR_NAME: &str = "android_firmware_extractor";
 
 use {
     abextractor::ABExtractor, aonlyextractor::AOnlyExtractor, aptarmd5extractor::ApTarMd5Extractor,
@@ -44,7 +45,7 @@ impl TryFrom<ZipFile> for Extractor {
 
     fn try_from(archive: ZipFile) -> std::result::Result<Self, Self::Error> {
         let files = archive.get_archived_basenames();
-        let tempdir = temp_dir().join("android_firmware_extractor");
+        let tempdir = temp_dir().join(TMPDIR_NAME);
 
         std::fs::create_dir_all(&tempdir)?;
 
