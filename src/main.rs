@@ -28,8 +28,13 @@ fn main() -> std::io::Result<()> {
     let archive = utils::ZipFile::try_from(args.firmware_zip_path.as_path())?;
     let extractor = extractor::Extractor::try_from(archive)?;
 
+    if !output.exists() {
+        std::fs::create_dir_all(&output)?;
+    }
+
     for partition in args.partitions.iter() {
         extractor.extract(partition, output.as_path())?;
     }
+
     Ok(())
 }
