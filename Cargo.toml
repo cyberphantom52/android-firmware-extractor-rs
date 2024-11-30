@@ -11,6 +11,7 @@ regex = "1.11.1"
 payload-dumper-rs = { git = "https://github.com/cyberphantom52/payload-dumper-rs/" }
 sdat2img-rs = { git = "https://github.com/cyberphantom52/sdat2img-rs" }
 android-sparse-rs = { package = "android-sparse", git = "https://gitlab.com/teskje/android-sparse-rs/" }
+temp-dir = "0.1.14"
 
 [profile.release]
 lto = true
