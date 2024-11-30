@@ -20,7 +20,7 @@ impl TryFrom<ZipFile> for ABExtractor {
         let writer = std::fs::File::create(&payload_path)?;
 
         archive.extract(&archive_payload, writer)?;
-        let payload = Payload::try_from(payload_path.as_path())?;
+        let payload = Payload::try_from(payload_path.as_path())?.quiet();
         Ok(ABExtractor { payload, _tmpdir })
     }
 }

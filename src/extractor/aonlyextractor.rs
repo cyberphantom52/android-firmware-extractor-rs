@@ -38,7 +38,9 @@ impl AOnlyExtractor {
         let source = File::open(sparse_file)?;
         let destination = File::create(output)?;
 
-        SparseDecoder::new(TransferList::try_from(transfer_list)?, source, destination).decode()
+        SparseDecoder::new(TransferList::try_from(transfer_list)?, source, destination)
+            .quiet()
+            .decode()
     }
 
     pub fn decompress(&self, compressed_file: &Path) -> Result<()> {
