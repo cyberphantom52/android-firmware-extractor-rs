@@ -9,6 +9,7 @@ clap = { version = "4.5.21", features = ["derive"] }
 compress-tools = "0.15.1"
 regex = "1.11.1"
 payload-dumper-rs = { git = "https://github.com/cyberphantom52/payload-dumper-rs/" }
+sdat2img-rs = { git = "https://github.com/cyberphantom52/sdat2img-rs" }
 android-sparse-rs = { package = "android-sparse", git = "https://gitlab.com/teskje/android-sparse-rs/" }
 
 [profile.release]

@@ -36,6 +36,7 @@ dependencies = [
  "compress-tools",
  "payload-dumper-rs",
  "regex",
+ "sdat2img-rs",
 ]
 
 [[package]]
@@ -759,6 +760,14 @@ dependencies = [
  "libc",
  "linux-raw-sys",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "sdat2img-rs"
+version = "0.1.0"
+source = "git+https://github.com/cyberphantom52/sdat2img-rs#3497e7dfadef7e511c802f799c52083d6432b499"
+dependencies = [
+ "clap 4.5.21",
 ]
 
 [[package]]
